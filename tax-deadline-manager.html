@@ -605,7 +605,8 @@
     <button class="tab-btn" id="tab-fee" onclick="switchTab('fee')">顧問料</button>
   </div>
   <div class="header-right">
-    <button class="btn btn-ghost" onclick="resetAndSeed()" title="既存データを全削除して26社を再登録"><span class="btn-label-full">再登録</span><span class="btn-label-short">再登録</span></button>
+    <span id="sync-status" style="font-size:11px;color:var(--text3)">接続中…</span>
+    <button class="btn btn-ghost" onclick="resetAndSeed()"><span class="btn-label-full">再登録</span><span class="btn-label-short">再登録</span></button>
     <button class="btn btn-ghost" onclick="exportCSV()"><span class="btn-label-full">CSV出力</span><span class="btn-label-short">CSV</span></button>
     <button class="btn btn-primary" onclick="openAddModal()">＋ 顧問先を追加</button>
   </div>
@@ -850,14 +851,77 @@
 </div>
 
 <script>
+// ── GAS設定 ──
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbw6XBGerMBoRbxllKUh1onHcNkwq_rjpQ-Bufp03SyoQqCOYqigojHLxLaLsySUqstI/exec';
+
 // ── DATA ──
 let clients = JSON.parse(localStorage.getItem('tax_clients') || '[]');
 let completions = JSON.parse(localStorage.getItem('tax_completions') || '{}');
 let memos = JSON.parse(localStorage.getItem('tax_memos') || '{}');
 let selectedId = null;
+let saveTimer = null;
 
 // ── INIT ──
 const currentYear = new Date().getFullYear();
+
+// ── GAS読み込み ──
+async function loadFromGAS() {
+  showSyncStatus('読み込み中…');
+  try {
+    const res = await fetch(GAS_URL + '?action=getAll');
+    const data = await res.json();
+    let updated = false;
+    if (data.clients && data.clients.length > 0) {
+      clients = data.clients;
+      localStorage.setItem('tax_clients', JSON.stringify(clients));
+      updated = true;
+    }
+    if (data.completions && Object.keys(data.completions).length > 0) {
+      completions = data.completions;
+      localStorage.setItem('tax_completions', JSON.stringify(completions));
+    }
+    if (data.memos && Object.keys(data.memos).length > 0) {
+      memos = data.memos;
+      localStorage.setItem('tax_memos', JSON.stringify(memos));
+    }
+    if (!updated) {
+      seedInitialClients();
+      await saveToGAS();
+    }
+    showSyncStatus('同期済み ✓', true);
+  } catch(e) {
+    showSyncStatus('オフライン', false, true);
+    if (clients.length === 0) { seedInitialClients(); }
+  }
+  renderSidebar();
+  renderWelcome();
+}
+
+// ── GAS保存 ──
+async function saveToGAS() {
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action:'saveAll', clients, completions, memos })
+    });
+    showSyncStatus('同期済み ✓', true);
+  } catch(e) {
+    showSyncStatus('保存失敗（ローカル保存済み）', false, true);
+  }
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToGAS, 1500);
+}
+
+function showSyncStatus(msg, ok=false, warn=false) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok ? 'var(--ok)' : warn ? 'var(--warn)' : 'var(--text3)';
+}
 
 // ── SEED ──
 function seedInitialClients() {
@@ -922,12 +986,12 @@ function seedInitialClients() {
 }
 
 // ── 起動 ──
-seedInitialClients();
-save();
+loadFromGAS();
 
 // ── SAVE / RENDER ──
 function save() {
   localStorage.setItem('tax_clients', JSON.stringify(clients));
+  scheduleSave();
   renderSidebar();
   if (selectedId) {
     const c = clients.find(x => x.id === selectedId);
@@ -1264,6 +1328,7 @@ function toggleComplete(clientId, key) {
   if (!completions[clientId]) completions[clientId] = {};
   completions[clientId][key] = !completions[clientId][key];
   localStorage.setItem('tax_completions', JSON.stringify(completions));
+  scheduleSave();
   const c = clients.find(x => x.id === clientId);
   renderMain(c);
   renderSidebar();
@@ -1370,6 +1435,7 @@ function deleteClient() {
   clients = clients.filter(x => x.id !== id);
   delete completions[id];
   localStorage.setItem('tax_completions', JSON.stringify(completions));
+  scheduleSave();
   closeModal('edit-modal');
   selectedId = null;
   save();
@@ -1382,6 +1448,7 @@ function deleteClient() {
 
 function saveMemos() {
   localStorage.setItem('tax_memos', JSON.stringify(memos));
+  scheduleSave();
 }
 
 function renderMemoList(clientId) {
@@ -1436,12 +1503,11 @@ function resetAndSeed() {
   localStorage.removeItem('tax_clients');
   localStorage.removeItem('tax_completions');
   localStorage.removeItem('tax_memos');
-  clients = [];
-  completions = {};
-  memos = {};
+  clients = []; completions = {}; memos = {};
   selectedId = null;
   seedInitialClients();
   save();
+  saveToGAS();
   renderWelcome();
   showToast('26社を登録しました');
 }
