@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>税務期限マネージャー</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f5f4f0; --surface:#fff; --surface2:#f0eeea; --border:#e4e1db;
+  --accent:#c96442; --accent-l:#fdf3f0;
+  --warn:#b87a0a; --warn-l:#fdf7ed;
+  --danger:#c13333; --danger-l:#fdf0f0;
+  --ok:#2a7a52; --ok-l:#edf7f2;
+  --text:#1a1916; --text2:#6b6760; --text3:#a8a49c;
+  --nav:60px; --hdr:52px; --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;padding-bottom:var(--nav)}
+
+/* HEADER */
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);height:var(--hdr);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:100}
+.logo{font-size:15px;font-weight:700}.logo em{color:var(--accent);font-style:normal}
+.hdr-r{display:flex;gap:8px;align-items:center}
+#sync-st{font-size:11px;color:var(--text3)}
+
+/* BOTTOM NAV */
+.bnav{position:fixed;bottom:0;left:0;right:0;height:var(--nav);background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:100}
+.nbtn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:none;cursor:pointer;color:var(--text3);font-family:inherit;font-size:10px;font-weight:500;padding:6px 0;position:relative}
+.nbtn.on{color:var(--accent)}
+.nbtn.on::before{content:'';position:absolute;top:0;left:25%;right:25%;height:2px;background:var(--accent);border-radius:0 0 2px 2px}
+.nicon{font-size:20px;line-height:1}
+
+/* VIEWS */
+.view{display:none;min-height:calc(100vh - var(--hdr) - var(--nav))}
+.view.on{display:block}
+
+/* BUTTONS */
+.btn{padding:8px 16px;border-radius:8px;border:none;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-p{background:var(--accent);color:#fff}.btn-p:active{background:#b05535}
+.btn-g{background:transparent;color:var(--text2);border:1px solid var(--border)}.btn-g:active{background:var(--surface2)}
+.btn-d{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+.btn-sm{padding:5px 12px;font-size:12px}.btn-xs{padding:3px 8px;font-size:11px}
+
+/* CLIENT LIST (mobile) */
+.cl-hdr{padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.cl-count{font-size:12px;color:var(--text3)}
+.cl-list{padding:0 16px 16px;display:flex;flex-direction:column;gap:8px}
+.cl-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.cl-card:active{background:var(--surface2)}
+.cl-card.hu{border-left:3px solid var(--danger)}.cl-card.hs{border-left:3px solid var(--warn)}
+.cl-name{font-size:14px;font-weight:600}.cl-meta{font-size:11px;color:var(--text3);margin-top:3px}
+.cl-badges{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.bp{font-size:10px;padding:1px 7px;border-radius:999px;border:1px solid;font-weight:500}
+.bp-u{color:var(--danger);border-color:var(--danger);background:var(--danger-l)}
+.bp-s{color:var(--warn);border-color:var(--warn);background:var(--warn-l)}
+.bp-o{color:var(--text3);border-color:var(--border);background:var(--surface2)}
+.cl-arr{color:var(--text3);font-size:20px;margin-left:8px;flex-shrink:0}
+.cl-empty{text-align:center;color:var(--text3);padding:60px 16px;font-size:13px;line-height:2}
+
+/* DETAIL */
+.dt-back{padding:10px 16px}
+.back-btn{border:none;background:none;cursor:pointer;color:var(--accent);font-size:14px;font-family:inherit;display:flex;align-items:center;gap:4px;padding:0}
+.dt-hdr{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start}
+.dt-name{font-size:17px;font-weight:700;margin-bottom:6px}
+.dt-tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{padding:2px 8px;border-radius:999px;font-size:10px;font-weight:500;border:1px solid}
+.t-b{color:#2a6db5;border-color:#aac4e8;background:#eef4fc}
+.t-p{color:#6b46c1;border-color:#c4b5fd;background:#f3f0ff}
+.t-g{color:var(--ok);border-color:#86c9a8;background:var(--ok-l)}
+.t-o{color:var(--accent);border-color:#f0b090;background:var(--accent-l)}
+.t-r{color:var(--danger);border-color:#f0a0a0;background:var(--danger-l)}
+
+.sum-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 16px}
+.sum-cell{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 4px;text-align:center}
+.snum{font-size:20px;font-weight:700}.slbl{font-size:9px;color:var(--text2);margin-top:2px}
+.nu{color:var(--danger)}.ns{color:var(--warn)}.no{color:var(--ok)}.nd{color:var(--text3)}
+
+.sec-hdr{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.06em;padding:12px 16px 6px;text-transform:uppercase}
+.dl-list{padding:0 16px;display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.dl-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 13px;display:flex;align-items:center;gap:11px}
+.dl-item.urgent{border-left:3px solid var(--danger)}.dl-item.soon{border-left:3px solid var(--warn)}
+.dl-item.done{opacity:.45}.dl-item.na{opacity:.22}
+.dl-chk{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;flex-shrink:0;transition:all .15s}
+.dl-chk.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.dl-body{flex:1;min-width:0}
+.dl-ttl{font-size:11px;color:var(--text2);margin-bottom:2px}
+.dl-dt{font-size:15px;font-weight:600;color:var(--text)}
+.dl-item.urgent .dl-dt{color:var(--danger)}.dl-item.soon .dl-dt{color:var(--warn)}
+.dl-item.done .dl-dt,.dl-item.na .dl-dt{color:var(--text3);font-size:12px}
+.dl-rem{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* MEMO */
+.memo-sec{padding:0 16px 16px}
+.memo-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 13px;display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.memo-item.mu{border-left:3px solid var(--danger)}.memo-item.ms{border-left:3px solid var(--warn)}
+.memo-dl{font-size:12px;font-weight:600;color:var(--text);min-width:80px}
+.memo-item.mu .memo-dl{color:var(--danger)}.memo-item.ms .memo-dl{color:var(--warn)}
+.memo-tx{font-size:12px;color:var(--text2);flex:1}
+.memo-rm{font-size:10px;color:var(--text3)}
+.memo-x{border:none;background:none;color:var(--text3);font-size:16px;cursor:pointer;padding:2px 4px}
+.memo-add{display:flex;gap:8px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 13px}
+.memo-add input{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text);outline:none}
+.memo-add input[type=date]{width:140px}.memo-add input[type=text]{flex:1;min-width:120px}
+.memo-add input:focus{border-color:var(--accent)}
+
+/* CALENDAR */
+.cal-view{background:var(--bg)}
+.cal-toolbar{display:flex;align-items:center;justify-content:space-between;padding:12px 12px 8px}
+.cal-mtitle{font-size:16px;font-weight:700}
+.cal-nav-g{display:flex;gap:8px;align-items:center}
+.cal-nb{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.cal-nb:active{background:var(--surface2)}
+.cal-tb{padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);font-family:inherit;font-size:12px;cursor:pointer}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);padding:0 8px;margin-bottom:4px}
+.cal-dowd{text-align:center;font-size:11px;color:var(--text3);font-weight:600;padding:4px 0}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:0 8px}
+.cal-cell{background:var(--surface);border:1px solid var(--border);border-radius:6px;min-height:60px;padding:4px;display:flex;flex-direction:column}
+.cal-cell.ev{cursor:pointer}.cal-cell.ev:active{background:var(--surface2)}
+.cal-cell.om{opacity:.3}.cal-cell.td{border-color:var(--accent);background:var(--accent-l)}
+.cal-cell.sel{border-color:var(--accent);border-width:2px}
+.cal-cell.hu{border-left:3px solid var(--danger)}.cal-cell.hs:not(.hu){border-left:3px solid var(--warn)}
+.cal-dn{font-size:11px;font-weight:600;color:var(--text3);margin-bottom:2px}
+.cal-cell.td .cal-dn{color:var(--accent);font-weight:700}
+.cal-bgs{display:flex;flex-direction:column;gap:2px}
+.cal-bg{font-size:10px;font-weight:600}
+.cal-bg.u{color:var(--danger)}.cal-bg.s{color:var(--warn)}.cal-bg.ok{color:var(--text3);font-weight:400}.cal-bg.dn{color:var(--text3);font-size:9px}
+
+/* CALENDAR DETAIL */
+.cal-detail{margin:8px 8px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.cal-dh{padding:11px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--text2);display:flex;justify-content:space-between;align-items:center}
+.cal-de{padding:20px 16px;color:var(--text3);font-size:12px;text-align:center}
+.cal-di{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start}
+.cal-di:last-child{border-bottom:none}
+.cal-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.d-u{background:var(--danger)}.d-s{background:var(--warn)}.d-ok{background:var(--ok)}.d-dn{background:var(--text3)}
+.cal-cn{font-size:13px;font-weight:600;color:var(--text)}.cal-ct{font-size:11px;color:var(--text2);margin-top:2px}
+
+.fee-sg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:0}
+.fee-sc{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 8px;text-align:center}
+.fee-sn{font-size:16px;font-weight:700;color:var(--accent)}.fee-sl{font-size:10px;color:var(--text2);margin-top:3px}
+.fee-tbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:16px}
+.fee-tbl th{background:var(--surface);border-bottom:2px solid var(--border);padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);font-weight:600;letter-spacing:.05em;position:sticky;top:56px}
+.fee-tbl td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+.fee-tbl tr:hover td{background:var(--surface2)}
+.fee-tbl tfoot td{font-weight:700;background:var(--surface);border-top:2px solid var(--border);border-bottom:none}
+.ra{text-align:right}
+.fee-tbl td.ra{text-align:right;font-variant-numeric:tabular-nums}
+.fee-un{color:var(--text3);font-size:11px}
+.fee-note-td{font-size:11px;color:var(--text3)}
+
+/* MODAL */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:flex-end}
+.modal{background:var(--surface);border-radius:16px 16px 0 0;padding:20px 20px 36px;width:100%;max-height:92vh;overflow-y:auto}
+.modal-drag{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px}
+.modal h2{font-size:16px;font-weight:700;margin-bottom:18px}
+.fg{margin-bottom:14px}
+.fl{font-size:11px;color:var(--text2);margin-bottom:5px;display:block;font-weight:600}
+.fi,.fs{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px;outline:none;-webkit-appearance:none}
+.fi:focus,.fs:focus{border-color:var(--accent)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fchk{display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)}
+.fchk:last-child{border-bottom:none}
+.fchk input{width:18px;height:18px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.divider{border:none;border-top:1px solid var(--border);margin:14px 0}
+.mact{display:flex;gap:8px;margin-top:20px}
+.mact .btn{flex:1;padding:12px;font-size:14px}
+
+/* PC */
+@media(min-width:640px){
+  body{padding-bottom:0}
+  .bnav{display:none}
+  .pc-tabs{display:flex !important}
+  .hdr{height:56px;padding:0 24px}
+  .view.on{display:flex}
+  .pc-sb{width:260px;min-width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:calc(100vh - 56px);position:sticky;top:56px;overflow-y:auto;flex-shrink:0}
+  .pc-sbh{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+  .pc-sbt{font-size:11px;color:var(--text2);font-weight:600;letter-spacing:.06em}
+  .pc-clist{overflow-y:auto;flex:1}
+  .pc-ci{padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;transition:background .1s}
+  .pc-ci:hover{background:var(--surface2)}.pc-ci.on{background:var(--accent-l);border-left:3px solid var(--accent);padding-left:13px}
+  .pc-cin{font-size:13px;font-weight:500}.pc-cim{font-size:11px;color:var(--text3);margin-top:2px}
+  .adot{width:7px;height:7px;border-radius:50%;background:var(--danger);flex-shrink:0;margin-top:4px;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .pc-main{flex:1;overflow-y:auto;height:calc(100vh - 56px);padding:20px;min-width:0}
+  .dt-back{display:none}
+  .cl-hdr,.cl-list{display:none}
+  .view-clients .pc-sb,.view-clients .pc-main{display:flex}
+  .view-calendar{flex-direction:row}
+  .cal-lpc{flex:1;padding:20px;overflow:hidden;display:flex;flex-direction:column}
+  .cal-rpc{width:260px;min-width:260px;border-left:1px solid var(--border);background:var(--surface);padding:16px;overflow-y:auto;height:calc(100vh - 56px)}
+  .cal-grid,.cal-dow{padding:0}
+  .cal-toolbar{padding:0 0 12px}
+  .cal-detail{margin:8px 0 0}
+  .view-detail{flex-direction:row}
+  .fee-view{padding:20px}
+  .modal-ov{align-items:center;padding:20px}
+  .modal{border-radius:14px;max-width:480px;padding-bottom:24px}
+  .modal-drag{display:none}
+}
+@media(max-width:639px){
+  .pc-tabs{display:none !important}
+}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* TOAST */
+.toast{position:fixed;bottom:calc(var(--nav) + 12px);left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:300;white-space:nowrap;animation:fadeUp .25s ease}
+@media(min-width:768px){.toast{bottom:24px}}
+@keyframes fadeUp{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+.welcome-pc{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);gap:12px;text-align:center}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="logo">税務<em>期限</em>マネージャー</div>
+  <div class="pc-tabs" style="display:none;gap:4px">
+    <button class="nbtn" id="pct-clients" onclick="sw('clients')" style="flex-direction:row;gap:6px;padding:6px 14px;border-radius:8px;font-size:13px">🏢 顧問先</button>
+    <button class="nbtn" id="pct-calendar" onclick="sw('calendar')" style="flex-direction:row;gap:6px;padding:6px 14px;border-radius:8px;font-size:13px">📅 カレンダー</button>
+    <button class="nbtn" id="pct-fee" onclick="sw('fee')" style="flex-direction:row;gap:6px;padding:6px 14px;border-radius:8px;font-size:13px">💴 顧問料</button>
+  </div>
+  <div class="hdr-r">
+    <span id="sync-st"></span>
+    <button class="btn btn-g btn-sm" onclick="exportCSV()">CSV</button>
+    <button class="btn btn-p btn-sm" onclick="openAddModal()">＋ 追加</button>
+  </div>
+</header>
+
+<!-- 顧問先一覧 -->
+<div class="view view-clients on" id="view-clients">
+  <div class="pc-sb" id="sb-clients" style="display:none">
+    <div class="pc-sbh"><span class="pc-sbt">顧問先一覧</span><span id="cnt-pc" style="font-size:11px;color:var(--text3)"></span></div>
+    <div class="pc-clist" id="pcl-clients"></div>
+  </div>
+  <div class="pc-main" id="pm-clients" style="display:none">
+    <div class="welcome-pc"><div style="font-size:48px;opacity:.3">📋</div><p style="font-size:14px;color:var(--text2)">顧問先を選んでください</p></div>
+  </div>
+  <div class="cl-hdr"><span class="cl-count" id="cnt-m"></span><button class="btn btn-g btn-sm" onclick="resetAndSeed()">再登録</button></div>
+  <div class="cl-list" id="mcl"></div>
+</div>
+
+<!-- 詳細 -->
+<div class="view view-detail" id="view-detail">
+  <div class="pc-sb" id="sb-detail" style="display:none">
+    <div class="pc-sbh"><span class="pc-sbt">顧問先一覧</span><span id="cnt-pc2" style="font-size:11px;color:var(--text3)"></span></div>
+    <div class="pc-clist" id="pcl-detail"></div>
+  </div>
+  <div class="pc-main" id="detail-main">
+    <div class="dt-back"><button class="back-btn" onclick="goBack()">← 一覧に戻る</button></div>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<!-- カレンダー -->
+<div class="view view-calendar" id="view-calendar">
+  <div class="cal-lpc" id="cal-left">
+    <div class="cal-toolbar">
+      <div class="cal-nav-g">
+        <button class="cal-nb" onclick="calPrev()">←</button>
+        <button class="cal-nb" onclick="calNext()">→</button>
+        <button class="cal-tb" onclick="calToday()">今月</button>
+      </div>
+      <span class="cal-mtitle" id="cal-title"></span>
+    </div>
+    <div class="cal-dow">
+      <div class="cal-dowd">日</div><div class="cal-dowd">月</div><div class="cal-dowd">火</div>
+      <div class="cal-dowd">水</div><div class="cal-dowd">木</div><div class="cal-dowd">金</div><div class="cal-dowd">土</div>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="cal-detail" id="cal-det-m"><div class="cal-de">日付をタップすると詳細が表示されます</div></div>
+  </div>
+  <div class="cal-rpc" id="cal-rpc" style="display:none">
+    <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:40px">日付をクリックすると詳細が表示されます</div>
+  </div>
+</div>
+
+<!-- 顧問料 -->
+<div class="view view-fee" id="view-fee">
+  <div style="padding:20px;width:100%">
+    <div class="fee-sg" id="fee-sg"></div>
+    <table class="fee-tbl" id="fee-tbl">
+      <thead>
+        <tr>
+          <th>顧問先</th>
+          <th class="ra">月額顧問料</th>
+          <th class="ra">決算料</th>
+          <th class="ra">年末調整等</th>
+          <th class="ra">合計年額</th>
+          <th>備考</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="fee-tbody"></tbody>
+      <tfoot id="fee-tfoot"></tfoot>
+    </table>
+  </div>
+</div>
+
+<nav class="bnav">
+  <button class="nbtn on" id="nav-clients" onclick="sw('clients')"><span class="nicon">🏢</span>顧問先</button>
+  <button class="nbtn" id="nav-calendar" onclick="sw('calendar')"><span class="nicon">📅</span>カレンダー</button>
+  <button class="nbtn" id="nav-fee" onclick="sw('fee')"><span class="nicon">💴</span>顧問料</button>
+</nav>
+
+<!-- ADD MODAL -->
+<div class="modal-ov" id="add-modal" style="display:none" onclick="if(event.target===this)cm('add-modal')">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <h2>顧問先を追加</h2>
+    <div class="fg"><label class="fl">法人名 / 屋号</label><input class="fi" id="f-name" placeholder="例：株式会社○○"></div>
+    <div class="fg">
+      <label class="fl">決算日（事業年度末）</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select class="fs" id="f-fym" style="width:88px" onchange="afy('f')">
+          <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option><option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option><option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12" selected>12月</option>
+        </select>
+        <input class="fi" type="date" id="f-fye" style="flex:1;min-width:130px">
+        <span style="font-size:10px;color:var(--text3)">月末以外は直接入力</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="fg">
+      <label class="fl">基本設定</label>
+      <label class="fchk"><input type="checkbox" id="f-kojin"> 個人（所得税3/15・消費税3/31）</label>
+      <label class="fchk"><input type="checkbox" id="f-ext"> 申告期限延長あり（通常＋1ヶ月）</label>
+      <label class="fchk"><input type="checkbox" id="f-kan"> 簡易課税を選択している</label>
+      <label class="fchk"><input type="checkbox" id="f-jz"> 事前確定届出給与あり</label>
+      <label class="fchk"><input type="checkbox" id="f-sh"> 償却資産申告あり（1月末）</label>
+    </div>
+    <div class="fg">
+      <label class="fl">消費税</label>
+      <select class="fs" id="f-sho">
+        <option value="ka">課税事業者</option>
+        <option value="men">免税事業者（消費税申告不要）</option>
+      </select>
+    </div>
+    <div class="fg" id="f-chu-wrap">
+      <label class="fl">消費税 中間申告</label>
+      <select class="fs" id="f-chu">
+        <option value="0">なし（前期48万円以下）</option>
+        <option value="1">年1回（48万円超〜400万円以下）</option>
+        <option value="3">年3回（400万円超〜4,800万円以下）</option>
+        <option value="11">年11回（4,800万円超）</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl">法人税 中間申告</label>
+      <select class="fs" id="f-hchu">
+        <option value="1">あり（前期法人税10万円超）</option>
+        <option value="0">なし（前期法人税10万円以下）</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl">源泉所得税</label>
+      <select class="fs" id="f-gen">
+        <option value="monthly">毎月納付</option>
+        <option value="special">納期特例（年2回）</option>
+        <option value="none">徴収義務なし</option>
+      </select>
+    </div>
+    <div class="mact">
+      <button class="btn btn-g" onclick="cm('add-modal')">キャンセル</button>
+      <button class="btn btn-p" onclick="addClient()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-ov" id="edit-modal" style="display:none" onclick="if(event.target===this)cm('edit-modal')">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <h2>顧問先を編集</h2>
+    <input type="hidden" id="e-id">
+    <div class="fg"><label class="fl">法人名 / 屋号</label><input class="fi" id="e-name"></div>
+    <div class="fg">
+      <label class="fl">決算日（事業年度末）</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select class="fs" id="e-fym" style="width:88px" onchange="afy('e')">
+          <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option><option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option><option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+        </select>
+        <input class="fi" type="date" id="e-fye" style="flex:1;min-width:130px">
+        <span style="font-size:10px;color:var(--text3)">月末以外は直接入力</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="fg">
+      <label class="fl">基本設定</label>
+      <label class="fchk"><input type="checkbox" id="e-kojin"> 個人（所得税3/15・消費税3/31）</label>
+      <label class="fchk"><input type="checkbox" id="e-ext"> 申告期限延長あり（通常＋1ヶ月）</label>
+      <label class="fchk"><input type="checkbox" id="e-kan"> 簡易課税を選択している</label>
+      <label class="fchk"><input type="checkbox" id="e-jz"> 事前確定届出給与あり</label>
+      <label class="fchk"><input type="checkbox" id="e-sh"> 償却資産申告あり（1月末）</label>
+    </div>
+    <div class="fg">
+      <label class="fl">消費税</label>
+      <select class="fs" id="e-sho">
+        <option value="ka">課税事業者</option>
+        <option value="men">免税事業者（消費税申告不要）</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl">消費税 中間申告</label>
+      <select class="fs" id="e-chu">
+        <option value="0">なし（前期48万円以下）</option>
+        <option value="1">年1回（48万円超〜400万円以下）</option>
+        <option value="3">年3回（400万円超〜4,800万円以下）</option>
+        <option value="11">年11回（4,800万円超）</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl">法人税 中間申告</label>
+      <select class="fs" id="e-hchu">
+        <option value="1">あり（前期法人税10万円超）</option>
+        <option value="0">なし（前期法人税10万円以下）</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl">源泉所得税</label>
+      <select class="fs" id="e-gen">
+        <option value="monthly">毎月納付</option>
+        <option value="special">納期特例（年2回）</option>
+        <option value="none">徴収義務なし</option>
+      </select>
+    </div>
+    <div class="divider"></div>
+    <div class="fg">
+      <label class="fl">顧問料</label>
+      <div class="frow" style="margin-bottom:8px">
+        <div><label class="fl">月額顧問料（円）</label><input class="fi" type="number" id="e-fm" placeholder="50000"></div>
+        <div><label class="fl">決算料（円）</label><input class="fi" type="number" id="e-fc" placeholder="150000"></div>
+      </div>
+      <div class="frow" style="margin-bottom:8px">
+        <div><label class="fl">年末調整等（円）</label><input class="fi" type="number" id="e-fy" placeholder="30000"></div>
+        <div></div>
+      </div>
+      <label class="fl">備考</label>
+      <input class="fi" type="text" id="e-fn" placeholder="給与計算別途など">
+    </div>
+    <div class="mact" style="flex-direction:column">
+      <button class="btn btn-p" onclick="saveEdit()">保存する</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-g" style="flex:1" onclick="cm('edit-modal')">キャンセル</button>
+        <button class="btn btn-d" style="flex:1" onclick="delClient()">削除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GAS_URL='https://script.google.com/macros/s/AKfycbw6XBGerMBoRbxllKUh1onHcNkwq_rjpQ-Bufp03SyoQqCOYqigojHLxLaLsySUqstI/exec';
+let clients=JSON.parse(localStorage.getItem('tax_clients')||'[]');
+let completions=JSON.parse(localStorage.getItem('tax_completions')||'{}');
+let memos=JSON.parse(localStorage.getItem('tax_memos')||'{}');
+let selId=null,saveTimer=null,curView='clients';
+const CY=new Date().getFullYear();
+
+// GAS
+async function loadGAS(){
+  ss('読み込み中…');
+  try{
+    const r=await fetch(GAS_URL+'?action=getAll');
+    const d=await r.json();
+    if(d.clients&&d.clients.length>0){clients=d.clients;localStorage.setItem('tax_clients',JSON.stringify(clients))}
+    if(d.completions&&Object.keys(d.completions).length>0){completions=d.completions;localStorage.setItem('tax_completions',JSON.stringify(completions))}
+    if(d.memos&&Object.keys(d.memos).length>0){memos=d.memos;localStorage.setItem('tax_memos',JSON.stringify(memos))}
+    if(!d.clients||d.clients.length===0){seedClients();await saveGAS()}
+    ss('同期済み ✓',true);
+  }catch(e){ss('オフライン',false,true);if(clients.length===0)seedClients()}
+  renderAll();
+}
+async function saveGAS(){
+  try{await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'saveAll',clients,completions,memos})});ss('同期済み ✓',true)}
+  catch(e){ss('保存失敗',false,true)}
+}
+function schSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveGAS,1500)}
+function ss(m,ok=false,w=false){const e=document.getElementById('sync-st');if(!e)return;e.textContent=m;e.style.color=ok?'var(--ok)':w?'var(--warn)':'var(--text3)'}
+
+// SEED
+function seedClients(){
+  if(clients.length>0)return;
+  const y=CY;
+  const seed=[
+    {name:'㈱JIMS',month:1,kojin:false,ext:false},
+    {name:'フェルマー合同会社',month:1,kojin:false,ext:false},
+    {name:'㈱ヴィレッジ',month:2,kojin:false,ext:false},
+    {name:'アコンシェルf',month:2,kojin:false,ext:true},
+    {name:'合同会社T&P',month:3,kojin:false,ext:false},
+    {name:'㈱藤田工務店',month:3,kojin:false,ext:false},
+    {name:'ヒカリ電機',month:3,kojin:false,ext:false,fyend:`${y}-03-20`},
+    {name:'㈱きらめきラボ',month:4,kojin:false,ext:false},
+    {name:'合同会社エムズアイ',month:4,kojin:false,ext:false},
+    {name:'㈱KIU',month:5,kojin:false,ext:false},
+    {name:'㈱フルリール',month:5,kojin:false,ext:false},
+    {name:'㈲エコ・ハウス',month:8,kojin:false,ext:false},
+    {name:'㈲西川住宅流通',month:8,kojin:false,ext:false},
+    {name:'㈱リセスタハウジング',month:9,kojin:false,ext:false},
+    {name:'㈱カスガ機工',month:10,kojin:false,ext:false},
+    {name:'㈱GUコーポレーション',month:11,kojin:false,ext:false},
+    {name:'トーラス 太田英樹',month:12,kojin:true,ext:false},
+    {name:'神栄自動車 大形',month:12,kojin:true,ext:false},
+    {name:'久原ルミ',month:12,kojin:true,ext:false},
+    {name:'西川正代',month:12,kojin:true,ext:false},
+    {name:'田中泰儀',month:12,kojin:true,ext:false},
+    {name:'三田将平',month:12,kojin:true,ext:false},
+    {name:'伴 祥高',month:12,kojin:true,ext:false},
+    {name:'萩本',month:12,kojin:true,ext:false},
+    {name:'㈱エムイットシステム',month:12,kojin:false,ext:false},
+    {name:'一般社団法人ジェントルハンズ',month:12,kojin:false,ext:false},
+  ];
+  seed.forEach((s,i)=>{
+    const ld=new Date(y,s.month,0).getDate();
+    const fyend=s.fyend||`${y}-${String(s.month).padStart(2,'0')}-${String(ld).padStart(2,'0')}`;
+    clients.push({id:(Date.now()+i).toString(),name:s.name,fyend,kojin:s.kojin,extension:s.ext,chukan:'0',special:false,jizen:false,shokyaku:false,kantan:false});
+  });
+}
+
+// SAVE
+function save(){localStorage.setItem('tax_clients',JSON.stringify(clients));schSave();renderAll()}
+function saveMemos(){localStorage.setItem('tax_memos',JSON.stringify(memos));schSave()}
+
+// RENDER ALL
+function renderAll(){
+  const pc=window.innerWidth>=768;
+  ['sb-clients','pm-clients','sb-detail','cal-rpc'].forEach(id=>{
+    const e=document.getElementById(id);if(e)e.style.display=pc?(id==='cal-rpc'?'block':'flex'):'none';
+  });
+  renderCL();
+  if(curView==='calendar')renderCal();
+  if(curView==='fee')renderFee();
+  if(selId){const c=clients.find(x=>x.id===selId);if(c)renderDt(c)}
+}
+
+// VIEW SWITCH
+function sw(v){
+  curView=v;
+  document.querySelectorAll('.view').forEach(e=>e.classList.remove('on'));
+  document.querySelectorAll('.nbtn').forEach(e=>e.classList.remove('on'));
+  const vmap={clients:'view-clients',detail:'view-detail',calendar:'view-calendar',fee:'view-fee'};
+  const nmap={clients:'nav-clients',calendar:'nav-calendar',fee:'nav-fee'};
+  const pcmap={clients:'pct-clients',calendar:'pct-calendar',fee:'pct-fee'};
+  const ve=document.getElementById(vmap[v]||vmap.clients);
+  if(ve)ve.classList.add('on');
+  const ne=document.getElementById(nmap[v]||nmap.clients);
+  if(ne)ne.classList.add('on');
+  const pe=document.getElementById(pcmap[v]||pcmap.clients);
+  if(pe)pe.classList.add('on');
+  if(v==='calendar')renderCal();
+  if(v==='fee')renderFee();
+}
+function goBack(){sw('clients');selId=null;renderCL()}
+
+// CLIENT LIST
+function fyLbl(c){
+  if(c.fyend){const d=new Date(c.fyend+'T00:00:00');return`${d.getMonth()+1}/${d.getDate()}決算`}
+  return c.month+'月決算';
+}
+function renderCL(){
+  const items=clients.map(c=>{
+    const dl=calcDL(c);
+    const un=dl.filter(d=>d.status==='urgent'&&!isDone(c.id,d.key)).length;
+    const sn=dl.filter(d=>d.status==='soon'&&!isDone(c.id,d.key)).length;
+    return{c,un,sn};
+  });
+  const cnt=clients.length+'社';
+  ['cnt-m','cnt-pc','cnt-pc2'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=cnt});
+
+  // Mobile
+  const ml=document.getElementById('mcl');
+  if(ml){
+    if(!clients.length){ml.innerHTML='<div class="cl-empty">顧問先がまだいません。<br>右上の「＋ 追加」から登録してください。</div>'}
+    else{ml.innerHTML=items.map(({c,un,sn})=>{
+      const cls=un?'hu':sn?'hs':'';
+      const bd=un?`<span class="bp bp-u">期限間近 ${un}件</span>`:sn?`<span class="bp bp-s">要注意 ${sn}件</span>`:`<span class="bp bp-o">問題なし</span>`;
+      return`<div class="cl-card ${cls}" onclick="selClient('${c.id}')"><div style="flex:1;min-width:0"><div class="cl-name">${esc(c.name)}</div><div class="cl-meta">${c.kojin?'個人':fyLbl(c)}</div><div class="cl-badges">${bd}</div></div><span class="cl-arr">›</span></div>`;
+    }).join('')}
+  }
+
+  // PC sidebars
+  ['pcl-clients','pcl-detail'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    el.innerHTML=items.map(({c,un,sn})=>{
+      const dot=(un||sn)?'<div class="adot"></div>':'';
+      return`<div class="pc-ci${c.id===selId?' on':''}" onclick="selClient('${c.id}')"><div><div class="pc-cin">${esc(c.name)}</div><div class="pc-cim">${c.kojin?'個人':fyLbl(c)}</div></div>${dot}</div>`;
+    }).join('');
+  });
+}
+
+function selClient(id){
+  selId=id;
+  const c=clients.find(x=>x.id===id);
+  renderCL();
+  renderDt(c);
+  if(window.innerWidth<768)sw('detail');
+  else{document.querySelectorAll('.view').forEach(e=>e.classList.remove('on'));document.getElementById('view-detail').classList.add('on');curView='detail'}
+}
+
+// DETAIL
+function renderDt(c){
+  const dl=calcDL(c);
+  const un=dl.filter(d=>d.status==='urgent'&&!isDone(c.id,d.key)).length;
+  const sn=dl.filter(d=>d.status==='soon'&&!isDone(c.id,d.key)).length;
+  const ok=dl.filter(d=>d.status==='ok'&&!isDone(c.id,d.key)).length;
+  const dn=dl.filter(d=>isDone(c.id,d.key)).length;
+  const cl=({'0':'','1':'消費税中間年1回','3':'消費税中間年3回','11':'消費税中間年11回'})[String(c.chukan||0)];
+  const tags=[
+    c.kojin?`<span class="tag t-o">個人</span>`:`<span class="tag t-b">${fyLbl(c)}</span>`,
+    c.extension?`<span class="tag t-p">延長あり</span>`:'',
+    c.kantan?`<span class="tag t-g">簡易課税</span>`:'',
+    c.special?`<span class="tag t-o">納期特例</span>`:'',
+    c.jizen?`<span class="tag t-r">事前確定</span>`:'',
+    cl?`<span class="tag t-p">${cl}</span>`:'',
+  ].filter(Boolean).join('');
+
+  const go=['申告・納付','消費税 中間申告','源泉所得税','各種届出'];
+  const gr={};dl.forEach(d=>{if(!gr[d.category])gr[d.category]=[];gr[d.category].push(d)});
+  let gh='';
+  go.forEach(lb=>{
+    const its=gr[lb];if(!its||!its.length)return;
+    gh+=`<div class="sec-hdr">${lb}</div><div class="dl-list">`+its.map(d=>{
+      const done=isDone(c.id,d.key);
+      const cls=done?'done':d.status;
+      const dtHtml=d.status==='na'?`<div class="dl-dt" style="font-size:12px">${d.dateStr}</div>`:
+        `<div class="dl-dt">${d.dateStr}</div><div class="dl-rem">${d.remaining}</div>`;
+      return`<div class="dl-item ${cls}"><button class="dl-chk${done?' on':''}" onclick="togDone('${c.id}','${d.key}')">✓</button><div class="dl-body"><div class="dl-ttl">${d.title}</div>${dtHtml}</div></div>`;
+    }).join('')+'</div>';
+  });
+
+  // Memos
+  const today2=new Date();today2.setHours(0,0,0,0);
+  const ml=(memos[c.id]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const mh=ml.map(m=>{
+    const d=new Date(m.date+'T00:00:00');
+    const diff=Math.ceil((d-today2)/86400000);
+    const cls=diff<=0?'mu':diff<=30?'mu':diff<=60?'ms':'';
+    const rem=diff<0?`${Math.abs(diff)}日超過`:`あと${diff}日`;
+    return`<div class="memo-item ${cls}"><span class="memo-dl">${m.date.replace(/-/g,'/')}</span><span class="memo-tx">${esc(m.text)}</span><span class="memo-rm">${rem}</span><button class="memo-x" onclick="delMemo('${c.id}','${m.id}')">×</button></div>`;
+  }).join('');
+
+  document.getElementById('detail-content').innerHTML=`
+    <div class="dt-hdr">
+      <div><div class="dt-name">${esc(c.name)}</div><div class="dt-tags">${tags}</div></div>
+      <button class="btn btn-g btn-sm" onclick="openEdit('${c.id}')">編集</button>
+    </div>
+    <div class="sum-row">
+      <div class="sum-cell"><div class="snum nu">${un}</div><div class="slbl">期限間近</div></div>
+      <div class="sum-cell"><div class="snum ns">${sn}</div><div class="slbl">要注意</div></div>
+      <div class="sum-cell"><div class="snum no">${ok}</div><div class="slbl">余裕あり</div></div>
+      <div class="sum-cell"><div class="snum nd">${dn}</div><div class="slbl">完了済み</div></div>
+    </div>
+    ${gh}
+    <div class="sec-hdr">重要予定</div>
+    <div class="memo-sec">
+      ${mh}
+      <div class="memo-add">
+        <input type="date" id="md-${c.id}">
+        <input type="text" id="mt-${c.id}" placeholder="内容を入力…" onkeydown="if(event.key==='Enter')addMemo('${c.id}')">
+        <button class="btn btn-g btn-sm" onclick="addMemo('${c.id}')">追加</button>
+      </div>
+    </div>
+    <div style="height:16px"></div>`;
+}
+
+// MEMO
+function addMemo(cid){
+  const de=document.getElementById('md-'+cid),te=document.getElementById('mt-'+cid);
+  const date=de.value,text=te.value.trim();
+  if(!date||!text){toast('日付と内容を入力してください');return}
+  if(!memos[cid])memos[cid]=[];
+  memos[cid].push({id:Date.now().toString(),date,text});
+  saveMemos();te.value='';
+  const c=clients.find(x=>x.id===cid);if(c)renderDt(c);
+}
+function delMemo(cid,mid){
+  if(!memos[cid])return;
+  memos[cid]=memos[cid].filter(m=>m.id!==mid);
+  saveMemos();
+  const c=clients.find(x=>x.id===cid);if(c)renderDt(c);
+}
+
+// CALENDAR
+let calY=new Date().getFullYear(),calM=new Date().getMonth();
+function calPrev(){calM--;if(calM<0){calM=11;calY--}renderCal()}
+function calNext(){calM++;if(calM>11){calM=0;calY++}renderCal()}
+function calToday(){calY=new Date().getFullYear();calM=new Date().getMonth();renderCal()}
+
+function buildEM(){
+  const map={};const today=new Date();today.setHours(0,0,0,0);
+  clients.forEach(c=>{calcDL(c).forEach(d=>{
+    if(d.status==='na')return;
+    const done=isDone(c.id,d.key);
+    const k=d.dateStr.replace(/\//g,'-');
+    if(!map[k])map[k]=[];
+    map[k].push({cn:c.name,tt:d.title,st:done?'done':d.status,done});
+  })});
+  Object.entries(memos).forEach(([cid,list])=>{
+    const c=clients.find(x=>x.id===cid);if(!c)return;
+    (list||[]).forEach(m=>{
+      if(!map[m.date])map[m.date]=[];
+      const d=new Date(m.date+'T00:00:00');const today2=new Date();today2.setHours(0,0,0,0);
+      const diff=Math.ceil((d-today2)/86400000);
+      const st=diff<=30?'urgent':diff<=60?'soon':'ok';
+      map[m.date].push({cn:c.name,tt:m.text,st,done:false});
+    });
+  });
+  return map;
+}
+
+function renderCal(){
+  document.getElementById('cal-title').textContent=`${calY}年 ${calM+1}月`;
+  const today=new Date();today.setHours(0,0,0,0);
+  const em=buildEM();
+  const fd=new Date(calY,calM,1).getDay();
+  const dim=new Date(calY,calM+1,0).getDate();
+  const dip=new Date(calY,calM,0).getDate();
+  const grid=document.getElementById('cal-grid');grid.innerHTML='';
+  for(let i=0;i<42;i++){
+    let day,mo,yr,om=false;
+    if(i<fd){day=dip-fd+i+1;mo=calM-1;yr=calY;if(mo<0){mo=11;yr--}om=true}
+    else if(i>=fd+dim){day=i-fd-dim+1;mo=calM+1;yr=calY;if(mo>11){mo=0;yr++}om=true}
+    else{day=i-fd+1;mo=calM;yr=calY}
+    const dk=`${yr}-${String(mo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dl=`${yr}/${String(mo+1).padStart(2,'0')}/${String(day).padStart(2,'0')}`;
+    const isToday=!om&&yr===today.getFullYear()&&mo===today.getMonth()&&day===today.getDate();
+    const evs=em[dk]||[];
+    const un=evs.filter(e=>e.st==='urgent').length;
+    const sn=evs.filter(e=>e.st==='soon').length;
+    const ok=evs.filter(e=>e.st==='ok').length;
+    const dn=evs.filter(e=>e.st==='done').length;
+    const cell=document.createElement('div');
+    cell.className='cal-cell'+(om?' om':'')+(isToday?' td':'')+(evs.length?' ev':'')+(un?' hu':sn?' hs':'');
+    const dn2=document.createElement('div');dn2.className='cal-dn';dn2.textContent=day;cell.appendChild(dn2);
+    if(evs.length){
+      const bg=document.createElement('div');bg.className='cal-bgs';
+      if(un)bg.innerHTML+=`<div class="cal-bg u">🔴 ${un}件</div>`;
+      if(sn)bg.innerHTML+=`<div class="cal-bg s">🟡 ${sn}件</div>`;
+      if(ok)bg.innerHTML+=`<div class="cal-bg ok">${ok}件</div>`;
+      if(dn)bg.innerHTML+=`<div class="cal-bg dn">✓${dn}</div>`;
+      cell.appendChild(bg);
+      cell.addEventListener('click',()=>{
+        document.querySelectorAll('.cal-cell.sel').forEach(c=>c.classList.remove('sel'));
+        cell.classList.add('sel');
+        showCalDt(dl,evs);
+      });
+    }
+    grid.appendChild(cell);
+  }
+}
+
+function showCalDt(dl,evs){
+  const html=`<div class="cal-dh"><span>📅 ${dl}</span><span style="font-size:11px;color:var(--text3)">${evs.length}件</span></div>`+
+    evs.map(ev=>{
+      const dc=ev.st==='urgent'?'d-u':ev.st==='soon'?'d-s':ev.done?'d-dn':'d-ok';
+      return`<div class="cal-di"><div class="cal-dot ${dc}"></div><div><div class="cal-cn">${esc(ev.cn)}</div><div class="cal-ct">${esc(ev.tt)}</div></div></div>`;
+    }).join('');
+  const m=document.getElementById('cal-det-m');if(m)m.innerHTML=html;
+  const p=document.getElementById('cal-rpc');if(p)p.innerHTML=html;
+}
+
+// FEE
+function renderFee(){
+  const tm=clients.reduce((s,c)=>s+(c.feeMonthly||0),0);
+  const ta=clients.reduce((s,c)=>s+(c.feeMonthly||0)*12+(c.feeClosing||0)+(c.feeYearend||0),0);
+  const un=clients.filter(c=>!c.feeMonthly&&!c.feeClosing&&!c.feeYearend).length;
+  const fmt=n=>n?n.toLocaleString()+'円':'<span class="fee-un">未設定</span>';
+  document.getElementById('fee-sg').innerHTML=`
+    <div class="fee-sc"><div class="fee-sn">${tm.toLocaleString()}円</div><div class="fee-sl">月額合計</div></div>
+    <div class="fee-sc"><div class="fee-sn">${ta.toLocaleString()}円</div><div class="fee-sl">年額合計</div></div>
+    <div class="fee-sc"><div class="fee-sn">${un}社</div><div class="fee-sl">未設定</div></div>`;
+  document.getElementById('fee-tbody').innerHTML=clients.map(c=>{
+    const an=(c.feeMonthly||0)*12+(c.feeClosing||0)+(c.feeYearend||0);
+    return`<tr>
+      <td style="font-weight:600">${esc(c.name)}</td>
+      <td class="ra">${fmt(c.feeMonthly)}</td>
+      <td class="ra">${fmt(c.feeClosing)}</td>
+      <td class="ra">${fmt(c.feeYearend)}</td>
+      <td class="ra" style="font-weight:700;color:var(--accent)">${an?an.toLocaleString()+'円':'<span class="fee-un">-</span>'}</td>
+      <td class="fee-note-td">${esc(c.feeNote||'')}</td>
+      <td><button class="btn btn-g btn-xs" onclick="openEdit('${c.id}')">編集</button></td>
+    </tr>`;
+  }).join('');
+  const ty=clients.reduce((s,c)=>s+(c.feeYearend||0),0);
+  document.getElementById('fee-tfoot').innerHTML=`<tr>
+    <td>合計 ${clients.length}社</td>
+    <td class="ra">${tm.toLocaleString()}円</td>
+    <td class="ra">${clients.reduce((s,c)=>s+(c.feeClosing||0),0).toLocaleString()}円</td>
+    <td class="ra">${ty.toLocaleString()}円</td>
+    <td class="ra" style="color:var(--accent)">${ta.toLocaleString()}円</td>
+    <td></td><td></td>
+  </tr>`;
+}
+
+// MODAL
+function openAddModal(){
+  document.getElementById('f-name').value='';
+  document.getElementById('f-fym').value='12';
+  document.getElementById('f-fye').value=CY+'-12-31';
+  ['f-kojin','f-ext','f-kan','f-sh'].forEach(id=>document.getElementById(id).checked=false);
+  document.getElementById('f-jz').checked=true;
+  document.getElementById('f-sho').value='ka';
+  document.getElementById('f-chu').value='0';
+  document.getElementById('f-hchu').value='1';
+  document.getElementById('f-gen').value='special';
+  document.getElementById('add-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('f-name').focus(),100);
+}
+function cm(id){document.getElementById(id).style.display='none'}
+function addClient(){
+  const name=document.getElementById('f-name').value.trim();
+  const fyend=document.getElementById('f-fye').value;
+  if(!name){toast('法人名を入力してください');return}
+  if(!fyend){toast('決算日を入力してください');return}
+  clients.push({
+    id:Date.now().toString(),name,fyend,
+    kojin:document.getElementById('f-kojin').checked,
+    extension:document.getElementById('f-ext').checked,
+    kantan:document.getElementById('f-kan').checked,
+    jizen:document.getElementById('f-jz').checked,
+    shokyaku:document.getElementById('f-sh').checked,
+    shozei:document.getElementById('f-sho').value,      // ka / men
+    chukan:document.getElementById('f-chu').value,
+    hchukan:document.getElementById('f-hchu').value,    // 1 / 0
+    gensen:document.getElementById('f-gen').value,      // monthly / special / none
+  });
+  cm('add-modal');save();toast('追加しました');
+}
+function openEdit(id){
+  const c=clients.find(x=>x.id===id);
+  document.getElementById('e-id').value=c.id;
+  document.getElementById('e-name').value=c.name;
+  const fv=c.fyend||(c.year+'-'+String(c.month).padStart(2,'0')+'-'+new Date(c.year,c.month,0).getDate());
+  document.getElementById('e-fye').value=fv;
+  document.getElementById('e-fym').value=String(parseInt(fv.slice(5,7)));
+  document.getElementById('e-kojin').checked=c.kojin||false;
+  document.getElementById('e-ext').checked=c.extension||false;
+  document.getElementById('e-kan').checked=c.kantan||false;
+  document.getElementById('e-jz').checked=c.jizen||false;
+  document.getElementById('e-sh').checked=c.shokyaku||false;
+  // 旧データ互換：shozeiがなければ課税、gensenがなければspecial（旧special=trueなら）
+  document.getElementById('e-sho').value=c.shozei||'ka';
+  document.getElementById('e-chu').value=c.chukan||'0';
+  document.getElementById('e-hchu').value=c.hchukan!==undefined?String(c.hchukan):'1';
+  // 旧データ：special=true→special、special=false→monthly
+  const genVal=c.gensen||(c.special?'special':'monthly');
+  document.getElementById('e-gen').value=genVal;
+  document.getElementById('e-fm').value=c.feeMonthly||'';
+  document.getElementById('e-fc').value=c.feeClosing||'';
+  document.getElementById('e-fy').value=c.feeYearend||'';
+  document.getElementById('e-fn').value=c.feeNote||'';
+  document.getElementById('edit-modal').style.display='flex';
+}
+function saveEdit(){
+  const id=document.getElementById('e-id').value;
+  const i=clients.findIndex(x=>x.id===id);
+  clients[i]={
+    id,name:document.getElementById('e-name').value.trim(),
+    fyend:document.getElementById('e-fye').value,
+    kojin:document.getElementById('e-kojin').checked,
+    extension:document.getElementById('e-ext').checked,
+    kantan:document.getElementById('e-kan').checked,
+    jizen:document.getElementById('e-jz').checked,
+    shokyaku:document.getElementById('e-sh').checked,
+    shozei:document.getElementById('e-sho').value,
+    chukan:document.getElementById('e-chu').value,
+    hchukan:document.getElementById('e-hchu').value,
+    gensen:document.getElementById('e-gen').value,
+    feeMonthly:parseInt(document.getElementById('e-fm').value)||0,
+    feeClosing:parseInt(document.getElementById('e-fc').value)||0,
+    feeYearend:parseInt(document.getElementById('e-fy').value)||0,
+    feeNote:document.getElementById('e-fn').value.trim(),
+  };
+  cm('edit-modal');save();
+  if(selId===id){const c=clients[i];renderDt(c)}
+  toast('保存しました');
+}
+function delClient(){
+  const id=document.getElementById('e-id').value;
+  if(!confirm('削除しますか？'))return;
+  clients=clients.filter(x=>x.id!==id);
+  delete completions[id];delete memos[id];
+  localStorage.setItem('tax_completions',JSON.stringify(completions));
+  cm('edit-modal');
+  if(selId===id){selId=null;sw('clients')}
+  save();toast('削除しました');
+}
+function togDone(cid,key){
+  if(!completions[cid])completions[cid]={};
+  completions[cid][key]=!completions[cid][key];
+  localStorage.setItem('tax_completions',JSON.stringify(completions));
+  schSave();
+  const c=clients.find(x=>x.id===cid);if(c)renderDt(c);
+  renderCL();
+}
+function resetAndSeed(){
+  if(!confirm('全データを削除して26社を再登録しますか？'))return;
+  localStorage.clear();clients=[];completions={};memos={};selId=null;
+  seedClients();save();saveGAS();toast('26社を登録しました');
+}
+function afy(p){
+  const m=parseInt(document.getElementById(p+'-fym').value);
+  const fe=document.getElementById(p+'-fye');
+  const cur=fe.value?new Date(fe.value+'T00:00:00'):new Date();
+  const y=cur.getFullYear();const last=new Date(y,m,0);
+  fe.value=`${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
+}
+function exportCSV(){
+  if(!clients.length){toast('顧問先が登録されていません');return}
+  let csv='\uFEFF法人名,決算日,項目,期限日,ステータス\n';
+  clients.forEach(c=>{calcDL(c).forEach(d=>{
+    if(d.status==='na')return;
+    const st=isDone(c.id,d.key)?'完了':{urgent:'期限間近',soon:'要注意',ok:'余裕あり'}[d.status];
+    csv+=`"${c.name}","${c.fyend||''}","${d.title}","${d.dateStr}","${st}"\n`;
+  })});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`税務期限_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.csv`;
+  a.click();
+}
+
+// HELPERS
+function isDone(cid,key){return!!(completions[cid]&&completions[cid][key])}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}
+function fmt(d){return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`}
+
+// DEADLINE CALC
+function calcDL(c){
+  const today=new Date();today.setHours(0,0,0,0);
+  let fe;
+  if(c.fyend)fe=new Date(c.fyend+'T00:00:00');
+  else fe=new Date(parseInt(c.year),parseInt(c.month),0);
+  const ns=new Date(fe);ns.setDate(ns.getDate()+1);
+  const dl=[];
+
+  // 旧データ互換
+  const isMen=c.shozei==='men';   // 免税事業者
+  const noHchu=String(c.hchukan)==='0'; // 法人税中間なし
+  // gensen: 新データは'monthly'/'special'/'none'、旧データはspecial=true/false
+  const genVal=c.gensen||(c.special?'special':'monthly');
+
+  // ① 申告期限
+  if(c.kojin){
+    const y=today.getFullYear();const by=today>new Date(y,2,15)?y+1:y;
+    dl.push(md(today,'houjin','申告・納付','所得税 確定申告',new Date(by,2,15),null));
+    if(isMen)dl.push({key:'shohizei',category:'申告・納付',title:'消費税 確定申告',dateStr:'免税事業者',status:'na',remaining:'',note:null});
+    else dl.push(md(today,'shohizei','申告・納付','消費税 確定申告',new Date(by,2,31),null));
+  }else{
+    dl.push(md(today,'houjin','申告・納付','法人税・地方法人税',am(fe,c.extension?3:2),null));
+    if(isMen)dl.push({key:'shohizei',category:'申告・納付',title:'消費税 確定申告',dateStr:'免税事業者',status:'na',remaining:'',note:null});
+    else dl.push(md(today,'shohizei','申告・納付','消費税 確定申告',am(fe,c.extension?3:2),null));
+  }
+
+  // ② 法人税中間
+  if(noHchu){
+    dl.push({key:'houjin_chukan',category:'申告・納付',title:'法人税 中間申告',dateStr:'対象外（前期10万円以下）',status:'na',remaining:'',note:null});
+  }else{
+    dl.push(md(today,'houjin_chukan','申告・納付','法人税 中間申告',am(pd(am(ns,6)),2),null));
+  }
+
+  // ③ 消費税中間
+  if(isMen){
+    dl.push({key:'ct_none',category:'消費税 中間申告',title:'消費税 中間申告',dateStr:'免税事業者',status:'na',remaining:'',note:null});
+  }else{
+    const cn=parseInt(c.chukan||0);
+    if(cn===0)dl.push({key:'ct_none',category:'消費税 中間申告',title:'消費税 中間申告',dateStr:'対象外',status:'na',remaining:'',note:null});
+    else if(cn===1)dl.push(md(today,'ct1_1','消費税 中間申告','消費税 中間申告（年1回）',am(pd(am(ns,6)),2),null));
+    else if(cn===3)[1,2,3].forEach(n=>dl.push(md(today,`ct3_${n}`,'消費税 中間申告',`消費税 中間申告 第${n}回`,am(pd(am(ns,n*3)),2),null)));
+    else if(cn===11){
+      for(let i=1;i<=11;i++){const d2=am(pd(am(ns,i)),2);const diff=Math.ceil((d2-today)/86400000);if(diff<-5||diff>120)continue;dl.push(md(today,`ct11_${i}`,'消費税 中間申告',`消費税 中間申告 第${i}回`,d2,null))}
+      if(!dl.find(d=>d.key&&d.key.startsWith('ct11_')))dl.push({key:'ct11_none',category:'消費税 中間申告',title:'消費税 中間申告（年11回）',dateStr:'直近の期限なし',status:'na',remaining:'',note:null});
+    }
+  }
+
+  // ④ 源泉所得税
+  if(genVal==='none'){
+    dl.push({key:'gensen_regular',category:'源泉所得税',title:'源泉所得税',dateStr:'徴収義務なし',status:'na',remaining:'',note:null});
+    dl.push({key:'gensen_special1',category:'源泉所得税',title:'源泉納期特例 1〜6月分',dateStr:'徴収義務なし',status:'na',remaining:'',note:null});
+    dl.push({key:'gensen_special2',category:'源泉所得税',title:'源泉納期特例 7〜12月分',dateStr:'徴収義務なし',status:'na',remaining:'',note:null});
+  }else if(genVal==='special'){
+    dl.push({key:'gensen_regular',category:'源泉所得税',title:'源泉所得税 毎月納付',dateStr:'納期特例適用中',status:'na',remaining:'',note:null});
+    const y=today.getFullYear();let sp2=new Date(y,0,20);if(today>sp2)sp2=new Date(y+1,0,20);
+    dl.push(md(today,'gensen_special1','源泉所得税','源泉納期特例 1〜6月分',new Date(y,6,10),null));
+    dl.push(md(today,'gensen_special2','源泉所得税','源泉納期特例 7〜12月分',sp2,null));
+  }else{
+    dl.push(md(today,'gensen_regular','源泉所得税','源泉所得税 毎月納付',nth(today),null));
+    dl.push({key:'gensen_special1',category:'源泉所得税',title:'源泉納期特例 1〜6月分',dateStr:'毎月納付のため対象外',status:'na',remaining:'',note:null});
+    dl.push({key:'gensen_special2',category:'源泉所得税',title:'源泉納期特例 7〜12月分',dateStr:'毎月納付のため対象外',status:'na',remaining:'',note:null});
+  }
+
+  // ⑤ 各種届出
+  if(c.jizen)dl.push(md(today,'jizen_deadline','各種届出','事前確定届出給与 届出',pd(am(ns,4)),null));
+  else dl.push({key:'jizen_deadline',category:'各種届出',title:'事前確定届出給与 届出',dateStr:'対象外',status:'na',remaining:'',note:null});
+
+  if(isMen){
+    dl.push({key:'kantan_deadline',category:'各種届出',title:'簡易課税 選択届出',dateStr:'免税事業者',status:'na',remaining:'',note:null});
+  }else if(c.kantan){
+    dl.push(md(today,'kantan_deadline','各種届出','簡易課税 選択不適用届出',fe,null));
+  }else{
+    dl.push(md(today,'kantan_deadline','各種届出','簡易課税 選択届出',fe,null));
+  }
+
+  if(c.shokyaku){const y=today.getFullYear();let sh=new Date(y,0,31);if(today>sh)sh=new Date(y+1,0,31);dl.push(md(today,'shokyaku','各種届出','償却資産申告',sh,null))}
+  else dl.push({key:'shokyaku',category:'各種届出',title:'償却資産申告',dateStr:'対象外',status:'na',remaining:'',note:null});
+
+  const y2=today.getFullYear();let ho=new Date(y2,0,31);if(today>ho)ho=new Date(y2+1,0,31);
+  dl.push(md(today,'hotei','各種届出','法定調書合計表・給与支払報告書',ho,null));
+
+  return dl;
+}
+function md(today,key,cat,title,date,note){
+  const diff=Math.ceil((date-today)/86400000);
+  let st,rem;
+  if(diff<0){st='urgent';rem=`${Math.abs(diff)}日超過`}
+  else if(diff<=30){st='urgent';rem=`あと${diff}日`}
+  else if(diff<=60){st='soon';rem=`あと${diff}日`}
+  else{st='ok';rem=`あと${diff}日`}
+  return{key,category:cat,title,dateStr:fmt(date),date,status:st,remaining:rem,note};
+}
+function am(date,m){
+  const ime=date.getDate()===new Date(date.getFullYear(),date.getMonth()+1,0).getDate();
+  const mo=date.getMonth()+m;
+  if(ime)return new Date(date.getFullYear(),mo+1,0);
+  return new Date(date.getFullYear(),mo,Math.min(date.getDate(),new Date(date.getFullYear(),mo+1,0).getDate()));
+}
+function pd(date){const d=new Date(date);d.setDate(d.getDate()-1);return d}
+function nth(today){const y=today.getFullYear(),m=today.getMonth();let d=new Date(y,m,10);if(today>=d)d=new Date(y,m+1,10);return d}
+
+window.addEventListener('resize',()=>renderAll());
+loadGAS();
+</script>
+</body>
+</html>
