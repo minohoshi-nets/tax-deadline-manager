@@ -841,7 +841,7 @@ function openEdit(id){
   document.getElementById('e-chu').value=c.chukan||'0';
   document.getElementById('e-hchu').value=c.hchukan!==undefined?String(c.hchukan):'1';
   // 旧データ：special=true→special、special=false→monthly
-  const genVal=c.gensen||(c.special?'special':'monthly');
+  const genVal=c.gensen||(c.special===false?'monthly':'special');
   document.getElementById('e-gen').value=genVal;
   document.getElementById('e-fm').value=c.feeMonthly||'';
   document.getElementById('e-fc').value=c.feeClosing||'';
@@ -926,17 +926,26 @@ function fmt(d){return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0
 // DEADLINE CALC
 function calcDL(c){
   const today=new Date();today.setHours(0,0,0,0);
+
+  // 決算日を取得
   let fe;
   if(c.fyend)fe=new Date(c.fyend+'T00:00:00');
   else fe=new Date(parseInt(c.year),parseInt(c.month),0);
+
+  // 申告期限が過去なら翌年に繰り越す（複数年対応のためwhileループ）
+  if(!c.kojin){
+    while(am(fe,c.extension?3:2)<today){
+      fe=new Date(fe.getFullYear()+1,fe.getMonth(),fe.getDate());
+    }
+  }
   const ns=new Date(fe);ns.setDate(ns.getDate()+1);
   const dl=[];
 
   // 旧データ互換
-  const isMen=c.shozei==='men';   // 免税事業者
-  const noHchu=String(c.hchukan)==='0'; // 法人税中間なし
-  // gensen: 新データは'monthly'/'special'/'none'、旧データはspecial=true/false
-  const genVal=c.gensen||(c.special?'special':'monthly');
+  const isMen=c.shozei==='men';
+  const noHchu=String(c.hchukan)==='0';
+  // gensen未設定の場合：special=trueなら'special'、false/'undefined'なら元のデフォルトの'special'
+  const genVal=c.gensen||(c.special===false?'monthly':'special');
 
   // ① 申告期限
   if(c.kojin){
@@ -991,12 +1000,16 @@ function calcDL(c){
   if(c.jizen)dl.push(md(today,'jizen_deadline','各種届出','事前確定届出給与 届出',pd(am(ns,4)),null));
   else dl.push({key:'jizen_deadline',category:'各種届出',title:'事前確定届出給与 届出',dateStr:'対象外',status:'na',remaining:'',note:null});
 
+  // 簡易課税・課税事業者選択届出（当期末が期限→過ぎていれば翌期末）
+  let kantanDate=fe;
+  if(kantanDate<today)kantanDate=new Date(kantanDate.getFullYear()+1,kantanDate.getMonth(),kantanDate.getDate());
+
   if(isMen){
     dl.push({key:'kantan_deadline',category:'各種届出',title:'簡易課税 選択届出',dateStr:'免税事業者',status:'na',remaining:'',note:null});
   }else if(c.kantan){
-    dl.push(md(today,'kantan_deadline','各種届出','簡易課税 選択不適用届出',fe,null));
+    dl.push(md(today,'kantan_deadline','各種届出','簡易課税 選択不適用届出',kantanDate,null));
   }else{
-    dl.push(md(today,'kantan_deadline','各種届出','簡易課税 選択届出',fe,null));
+    dl.push(md(today,'kantan_deadline','各種届出','簡易課税 選択届出',kantanDate,null));
   }
 
   if(c.shokyaku){const y=today.getFullYear();let sh=new Date(y,0,31);if(today>sh)sh=new Date(y+1,0,31);dl.push(md(today,'shokyaku','各種届出','償却資産申告',sh,null))}
